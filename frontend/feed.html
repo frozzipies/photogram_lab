@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhotoGram — Feed</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>📷 Feed</h1>
+      <div>
+        <span id="who" class="meta"></span>
+        <button class="secondary" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+
+    <div class="note">
+      Click any post to open its own page — the <code>media_id</code> shows up in
+      the URL. You can only <b>Edit</b> your own posts from the UI, but the server
+      never checks ownership, so the victim's post is still editable via the API.
+      See the README to exploit it with Burp Suite.
+    </div>
+
+    <div id="feed"></div>
+  </div>
+
+  <script>
+    let me = null;
+
+    async function load() {
+      const meRes = await fetch("/api/me");
+      if (!meRes.ok) { window.location.href = "index.html"; return; }
+      me = await meRes.json();
+      document.getElementById("who").textContent =
+        "logged in as " + me.username;
+
+      const posts = await (await fetch("/api/posts")).json();
+      const feed = document.getElementById("feed");
+      feed.innerHTML = "";
+      for (const p of posts) {
+        const div = document.createElement("div");
+        div.className = "card";
+        const mine = p.owner_id === me.user_id;
+        div.innerHTML =
+          '<div class="owner">@' + p.owner +
+            (mine ? ' <span class="meta">(you)</span>' : "") + "</div>" +
+          '<img class="photo" src="' + p.image_url + '" alt="post image" />' +
+          "<p>" + escapeHtml(p.caption) + "</p>" +
+          '<a class="edit-link" href="post.html?id=' + p.media_id + '">🔎 Open post</a>';
+        feed.appendChild(div);
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "index.html";
+    });
+
+    load();
+  </script>
+</body>
+</html>

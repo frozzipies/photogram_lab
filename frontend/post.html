@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhotoGram — Post</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>📷 Post</h1>
+      <a href="feed.html">← back to feed</a>
+    </div>
+
+    <div class="note">
+      Dedicated page for a single post. Notice the <code>media_id</code> in the
+      address bar — that's the direct object reference. You can only edit your
+      <i>own</i> posts here, but the server doesn't enforce ownership. See the
+      README to exploit it with Burp Suite.
+    </div>
+
+    <div class="card" id="card"><p>Loading…</p></div>
+  </div>
+
+  <script>
+    // The media_id comes straight from the URL — this is what the attacker reads.
+    const id = new URLSearchParams(location.search).get("id");
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+
+    async function load() {
+      const meRes = await fetch("/api/me");
+      if (!meRes.ok) { location.href = "index.html"; return; }
+      const me = await meRes.json();
+
+      const res = await fetch("/api/media/" + id);
+      const card = document.getElementById("card");
+      if (!res.ok) {
+        card.innerHTML = '<p class="error">Post not found.</p>';
+        return;
+      }
+      const p = await res.json();
+      const mine = p.owner_id === me.user_id;
+      card.innerHTML =
+        '<div class="owner">@' + p.owner +
+          (mine ? ' <span class="meta">(you)</span>' : "") + "</div>" +
+        '<img class="photo" src="' + p.image_url + '" alt="post image" />' +
+        "<p>" + escapeHtml(p.caption) + "</p>" +
+        (mine
+          ? '<a class="edit-link" href="edit.html?id=' + id + '">✏️ Edit this post</a>'
+          : '<span class="meta">🔒 You can only edit your own posts.</span>');
+    }
+
+    load();
+  </script>
+</body>
+</html>

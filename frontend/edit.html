@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhotoGram — Edit Post</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>✏️ Edit Post</h1>
+      <a href="feed.html">← back to feed</a>
+    </div>
+
+    <div class="note">
+      This form sends <code>POST /api/media/&lt;id&gt;/edit</code>. Intercept it in
+      Burp Suite and change the <code>id</code> in the path to edit a post you
+      don't own.
+    </div>
+
+    <div class="card">
+      <img class="photo" id="photo" alt="post image" />
+      <label>Caption</label>
+      <textarea id="caption" rows="3"></textarea>
+      <button id="saveBtn">Save changes</button>
+      <p id="msg"></p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    const msg = document.getElementById("msg");
+
+    async function load() {
+      const res = await fetch("/api/media/" + id);
+      if (res.ok) {
+        const p = await res.json();
+        document.getElementById("caption").value = p.caption;
+        document.getElementById("photo").src = p.image_url;
+      }
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      msg.textContent = "";
+      msg.className = "";
+      // NOTE: the id used here comes straight from the URL. The server trusts
+      // whatever id arrives — that is the vulnerability being demonstrated.
+      const res = await fetch("/api/media/" + id + "/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: document.getElementById("caption").value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        msg.textContent = "✅ Saved! Caption is now: " + data.caption;
+      } else {
+        msg.className = "error";
+        msg.textContent = "❌ " + (data.error || "failed");
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>
